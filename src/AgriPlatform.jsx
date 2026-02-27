@@ -109,13 +109,13 @@ const FARMERS = [
   { id: 3, name: "Arjun Patil", location: "Karnataka", crop: "Cotton", rating: 4.9, contracts: 47, avatar: "AP", verified: true, price: 6500 },
   { id: 4, name: "Meena Kumari", location: "Rajasthan", crop: "Mustard", rating: 4.7, contracts: 18, avatar: "MK", verified: false, price: 5200 },
 ];
-const CROPS = [
-  { id: 1, name: "Organic Wheat", category: "Grain", price: 45, unit: "kg", stock: 2400, img: "🌾", farmer: "Ramesh Yadav", rating: 4.8 },
-  { id: 2, name: "Basmati Rice", category: "Grain", price: 92, unit: "kg", stock: 800, img: "🍚", farmer: "Priya Singh", rating: 4.9 },
-  { id: 3, name: "Fresh Tomatoes", category: "Vegetable", price: 28, unit: "kg", stock: 450, img: "🍅", farmer: "Arjun Patil", rating: 4.7 },
-  { id: 4, name: "Green Chickpea", category: "Pulse", price: 68, unit: "kg", stock: 1200, img: "🫘", farmer: "Sunita Devi", rating: 4.6 },
-  { id: 5, name: "Black Mustard", category: "Oilseed", price: 55, unit: "kg", stock: 600, img: "🌿", farmer: "Meena Kumari", rating: 4.8 },
-  { id: 6, name: "Red Onion", category: "Vegetable", price: 22, unit: "kg", stock: 3200, img: "🧅", farmer: "Rajesh More", rating: 4.5 },
+const PRODUCTS = [
+  { id: 1, name: "Solar Drip Irrigation Kit", category: "Equipment", price: 4500, unit: "piece", stock: 80, img: "💧", seller: "AgroTech Supplies", rating: 4.8 },
+  { id: 2, name: "Organic Fertilizer (50kg)", category: "Inputs", price: 850, unit: "bag", stock: 320, img: "🧪", seller: "GreenGrow Co.", rating: 4.9 },
+  { id: 3, name: "Soil pH Testing Kit", category: "Tools", price: 299, unit: "piece", stock: 150, img: "🔬", seller: "FarmLab India", rating: 4.7 },
+  { id: 4, name: "Neem Pesticide Spray (5L)", category: "Inputs", price: 480, unit: "bottle", stock: 200, img: "🌿", seller: "NaturePest Pvt.", rating: 4.6 },
+  { id: 5, name: "Heavy-Duty Sprayer Pump", category: "Equipment", price: 1200, unit: "piece", stock: 60, img: "🪣", seller: "KisanEquip", rating: 4.8 },
+  { id: 6, name: "Greenhouse Shade Net (50m)", category: "Tools", price: 2200, unit: "roll", stock: 45, img: "🏗️", seller: "PolyFarm Solutions", rating: 4.5 },
 ];
 const EQUIPMENT = [
   { id: 1, name: "John Deere Tractor 5E", category: "Tractor", price: 1200, unit: "day", owner: "Harpreet Singh", location: "Ludhiana, Punjab", distance: "12 km", rating: 4.9, available: true, img: "🚜", specs: { power: "75 HP", fuel: "Diesel", capacity: "4WD", year: 2021 } },
@@ -510,8 +510,8 @@ function RegisterPage() {
 
           <div className="grid grid-cols-2 gap-3 mb-6">
             {[
-              { value: "farmer", label: "I'm a Farmer", icon: "🌾", desc: "Sell crops & rent equipment" },
-              { value: "buyer", label: "I'm a Buyer", icon: "🛒", desc: "Buy crops & contract farms" },
+              { value: "farmer", label: "I'm a Seller", icon: "🌾", desc: "Sell products & rent equipment" },
+              { value: "buyer", label: "I'm a Buyer", icon: "🛒", desc: "Buy products & contract sellers" },
             ].map(r => (
               <button key={r.value} type="button" onClick={() => set("role", r.value)}
                 className="p-4 rounded-2xl text-left transition-all"
@@ -605,8 +605,8 @@ function ProfilePage() {
     { id: 2, farmer: "Sunita Devi", crop: "Soybean", qty: 20, value: 82000, status: "Completed", date: "Nov 2024" },
   ];
   const myListings = [
-    { id: 1, name: "Organic Wheat", price: 45, stock: 500, status: "Active" },
-    { id: 2, name: "Black Mustard", price: 55, stock: 200, status: "Active" },
+    { id: 1, name: "Solar Drip Irrigation Kit", price: 4500, stock: 12, status: "Active" },
+    { id: 2, name: "Organic Fertilizer (50kg)", price: 850, stock: 40, status: "Active" },
   ];
   const myEquipment = [
     { id: 1, name: "Rotavator 6-ft", price: 450, rentals: 12, status: "Available" },
@@ -657,7 +657,7 @@ function ProfilePage() {
                 </h1>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Tag color="rgba(255,255,255,0.15)" textColor="#fff">
-                    {profile?.role === "farmer" ? "🌾 Farmer" : "🛒 Buyer"}
+                    {profile?.role === "farmer" ? "🌾 Seller" : "🛒 Buyer"}
                   </Tag>
                   {profile?.verified && (
                     <Tag color="rgba(116,198,157,0.25)" textColor={T.greenSoft}>
@@ -749,7 +749,7 @@ function ProfilePage() {
                 <div className="font-bold mb-3" style={{ color: T.text }}>Account Details</div>
                 {[
                   ["Email", user?.email],
-                  ["Role", profile?.role === "farmer" ? "Farmer 🌾" : "Buyer 🛒"],
+                  ["Role", profile?.role === "farmer" ? "Seller 🌾" : "Buyer 🛒"],
                   ["Location", profile?.location || "—"],
                   ["Phone", profile?.phone || "—"],
                   ["Joined", profile?.created_at ? new Date(profile.created_at).toLocaleDateString("en-IN", { month: "long", year: "numeric" }) : "—"],
@@ -803,7 +803,7 @@ function ProfilePage() {
                     <div className="text-xs mt-0.5" style={{ color: T.gray }}>Stock: {l.stock} kg</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold" style={{ color: T.green }}>₹{l.price}/kg</div>
+                    <div className="font-bold" style={{ color: T.green }}>₹{l.price}/unit</div>
                     <Tag color={T.greenPale}>{l.status}</Tag>
                   </div>
                 </div>
@@ -879,7 +879,7 @@ function FeatureCards() {
   const { setPage } = useApp();
   const features = [
     { icon: <ClipboardList size={24} />, title: "Direct Contracts", desc: "Negotiate directly with farmers. Zero middlemen, fair prices.", page: "contracts", color: T.greenPale },
-    { icon: <ShoppingBasket size={24} />, title: "Smart Marketplace", desc: "Browse fresh crops, build bundles, and order with one tap.", page: "marketplace", color: T.brownPale },
+    { icon: <ShoppingBasket size={24} />, title: "Smart Marketplace", desc: "Browse products, build bundles, and order with one tap.", page: "marketplace", color: T.brownPale },
     { icon: <Tractor size={24} />, title: "Equipment Rental", desc: "Rent tractors and tools from neighbours by the day.", page: "equipment", color: "#E8F4F8" },
     { icon: <Users size={24} />, title: "Community Forum", desc: "Share knowledge, ask questions, grow together.", page: "community", color: "#FFF8E7" },
   ];
@@ -1058,11 +1058,10 @@ function ContractBuilder({ farmer, onClose }) {
         </div>
         <div>
           <label className="text-xs font-semibold block mb-1.5" style={{ color: T.textMute }}>DURATION</label>
-          <select value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
+          <input value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
+            placeholder="e.g. 3 Months, 1 Year"
             className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
-            style={{ background: T.sand, border: `1px solid ${T.grayLight}`, color: T.text }}>
-            <option value="3">3 Months</option><option value="6">6 Months</option><option value="12">12 Months</option>
-          </select>
+            style={{ background: T.sand, border: `1px solid ${T.grayLight}`, color: T.text }} />
         </div>
         <div>
           <label className="text-xs font-semibold block mb-1.5" style={{ color: T.textMute }}>DELIVERY LOCATION</label>
@@ -1183,14 +1182,10 @@ function ListContractModal({ onClose, onList }) {
           </div>
           <div>
             <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>CONTRACT DURATION</label>
-            <select value={form.duration} onChange={e => set("duration", e.target.value)}
+            <input value={form.duration} onChange={e => set("duration", e.target.value)}
+              placeholder="e.g. 6 Months, 2 Years"
               className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-              style={{ background: T.sand, border: `1.5px solid ${T.grayLight}`, color: T.text }}>
-              <option value="3">3 Months</option>
-              <option value="6">6 Months</option>
-              <option value="12">12 Months</option>
-              <option value="24">24 Months</option>
-            </select>
+              style={{ background: T.sand, border: `1.5px solid ${T.grayLight}`, color: T.text }} />
           </div>
           <div>
             <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>ABOUT YOUR FARM (optional)</label>
@@ -1303,28 +1298,28 @@ function ContractPage() {
   );
 }
 
-function MarketplaceCard({ crop }) {
+function MarketplaceCard({ product }) {
   const { addToCart } = useApp();
   const [added, setAdded] = useState(false);
   const handleAdd = () => {
-    addToCart({ id: crop.id, name: crop.name, price: crop.price, unit: crop.unit });
+    addToCart({ id: product.id, name: product.name, price: product.price, unit: product.unit });
     setAdded(true); setTimeout(() => setAdded(false), 1500);
   };
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -3 }}
       className="rounded-2xl overflow-hidden" style={{ background: T.white, border: `1px solid ${T.grayLight}` }}>
-      <div className="p-5 text-5xl text-center" style={{ background: T.sand }}>{crop.img}</div>
+      <div className="p-5 text-5xl text-center" style={{ background: T.sand }}>{product.img}</div>
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="font-bold text-sm" style={{ color: T.text }}>{crop.name}</div>
-            <div className="text-xs mt-0.5" style={{ color: T.gray }}>{crop.farmer}</div>
+            <div className="font-bold text-sm" style={{ color: T.text }}>{product.name}</div>
+            <div className="text-xs mt-0.5" style={{ color: T.gray }}>{product.seller}</div>
           </div>
-          <StarRating rating={crop.rating} />
+          <StarRating rating={product.rating} />
         </div>
         <div className="flex items-center justify-between mt-3">
-          <div><span className="font-black text-lg" style={{ color: T.green }}>₹{crop.price}</span><span className="text-xs ml-1" style={{ color: T.gray }}>/{crop.unit}</span></div>
-          <Tag color={T.greenPale}>{crop.stock.toLocaleString()} kg</Tag>
+          <div><span className="font-black text-lg" style={{ color: T.green }}>₹{product.price}</span></div>
+          <Tag color={T.greenPale}>{product.stock.toLocaleString()} in stock</Tag>
         </div>
         <motion.button onClick={handleAdd} animate={added ? { scale: [1, 1.15, 1] } : {}}
           className="mt-3 w-full py-2 rounded-xl text-sm font-bold transition-all"
@@ -1336,15 +1331,13 @@ function MarketplaceCard({ crop }) {
   );
 }
 
-// ─── LIST CROP MODAL ─────────────────────────────────────────
-function ListCropModal({ onClose, onList }) {
+// ─── LIST PRODUCT MODAL ──────────────────────────────────────
+function ListProductModal({ onClose, onList }) {
   const { user, setPage, showToast } = useApp();
-  const [form, setForm] = useState({ name: "", category: "Grain", price: "", unit: "kg", stock: "", description: "" });
+  const [form, setForm] = useState({ name: "", category: "", price: "", stock: "", description: "" });
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const categories = ["Grain", "Vegetable", "Pulse", "Oilseed", "Fruit", "Spice"];
-  const EMOJI_MAP = { Grain: "🌾", Vegetable: "🥦", Pulse: "🫘", Oilseed: "🌿", Fruit: "🍎", Spice: "🌶️" };
 
   const validate = () => {
     const e = {};
@@ -1362,7 +1355,7 @@ function ListCropModal({ onClose, onList }) {
     setSubmitting(true);
     await new Promise(r => setTimeout(r, 800));
     setSubmitting(false);
-    onList({ id: Date.now(), name: form.name, category: form.category, price: +form.price, unit: form.unit, stock: +form.stock, img: EMOJI_MAP[form.category] || "🌱", farmer: "You", rating: 5.0 });
+    onList({ id: Date.now(), name: form.name, category: form.category || "General", price: +form.price, unit: "piece", stock: +form.stock, img: "📦", seller: "You", rating: 5.0 });
     showToast(`${form.name} listed on marketplace!`);
     onClose();
   };
@@ -1376,7 +1369,7 @@ function ListCropModal({ onClose, onList }) {
         style={{ background: "#fff" }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-xl font-black" style={{ color: T.text, fontFamily: "Georgia, serif" }}>List a Crop / Product</h2>
+            <h2 className="text-xl font-black" style={{ color: T.text, fontFamily: "Georgia, serif" }}>List a Product</h2>
             <p className="text-xs mt-0.5" style={{ color: T.textMute }}>It'll appear on the Marketplace for buyers</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl" style={{ background: T.sand }}><X size={18} style={{ color: T.gray }} /></button>
@@ -1384,7 +1377,7 @@ function ListCropModal({ onClose, onList }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>PRODUCT NAME</label>
-            <input value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Organic Basmati Rice"
+            <input value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Sprayer Pump, Fertilizer Bag, Shade Net"
               className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
               style={{ background: T.sand, border: `1.5px solid ${errors.name ? T.error : T.grayLight}`, color: T.text }} />
             <FieldError msg={errors.name} />
@@ -1392,41 +1385,30 @@ function ListCropModal({ onClose, onList }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>CATEGORY</label>
-              <select value={form.category} onChange={e => set("category", e.target.value)}
+              <input value={form.category} onChange={e => set("category", e.target.value)}
+                placeholder="e.g. Equipment, Inputs, Tools"
                 className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: T.sand, border: `1.5px solid ${T.grayLight}`, color: T.text }}>
-                {categories.map(c => <option key={c}>{c}</option>)}
-              </select>
+                style={{ background: T.sand, border: `1.5px solid ${T.grayLight}`, color: T.text }} />
             </div>
             <div>
-              <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>UNIT</label>
-              <select value={form.unit} onChange={e => set("unit", e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: T.sand, border: `1.5px solid ${T.grayLight}`, color: T.text }}>
-                {["kg", "quintal", "tonne", "piece", "litre"].map(u => <option key={u}>{u}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>PRICE (₹ per {form.unit})</label>
-              <input type="number" min="1" value={form.price} onChange={e => set("price", e.target.value)} placeholder="e.g. 45"
+              <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>PRICE (₹)</label>
+              <input type="number" min="1" value={form.price} onChange={e => set("price", e.target.value)} placeholder="e.g. 1200"
                 className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
                 style={{ background: T.sand, border: `1.5px solid ${errors.price ? T.error : T.grayLight}`, color: T.text }} />
               <FieldError msg={errors.price} />
             </div>
-            <div>
-              <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>STOCK ({form.unit})</label>
-              <input type="number" min="1" value={form.stock} onChange={e => set("stock", e.target.value)} placeholder="e.g. 500"
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: T.sand, border: `1.5px solid ${errors.stock ? T.error : T.grayLight}`, color: T.text }} />
-              <FieldError msg={errors.stock} />
-            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>STOCK (no. of units)</label>
+            <input type="number" min="1" value={form.stock} onChange={e => set("stock", e.target.value)} placeholder="e.g. 50"
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: T.sand, border: `1.5px solid ${errors.stock ? T.error : T.grayLight}`, color: T.text }} />
+            <FieldError msg={errors.stock} />
           </div>
           <div>
             <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>DESCRIPTION (optional)</label>
             <textarea value={form.description} onChange={e => set("description", e.target.value)}
-              placeholder="Tell buyers about quality, growing method, certifications..." rows={2}
+              placeholder="Describe the product — specs, brand, condition, warranty..." rows={2}
               className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
               style={{ background: T.sand, border: `1.5px solid ${T.grayLight}`, color: T.text }} />
           </div>
@@ -1497,11 +1479,10 @@ function ListEquipmentModal({ onClose, onList }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>CATEGORY</label>
-              <select value={form.category} onChange={e => set("category", e.target.value)}
+              <input value={form.category} onChange={e => set("category", e.target.value)}
+                placeholder="e.g. Tractor, Irrigation"
                 className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: T.sand, border: `1.5px solid ${T.grayLight}`, color: T.text }}>
-                {categories.map(c => <option key={c}>{c}</option>)}
-              </select>
+                style={{ background: T.sand, border: `1.5px solid ${T.grayLight}`, color: T.text }} />
             </div>
             <div>
               <label className="text-xs font-bold block mb-1.5" style={{ color: T.textMute }}>DAILY RATE (₹/day)</label>
@@ -1537,26 +1518,26 @@ function ListEquipmentModal({ onClose, onList }) {
 }
 
 function MarketplacePage() {
-  const [crops, setCrops] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const { cart, removeFromCart } = useApp();
   const [showCart, setShowCart] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
-  const categories = ["All", "Grain", "Vegetable", "Pulse", "Oilseed"];
-  useEffect(() => { setTimeout(() => { setCrops(CROPS); setLoading(false); }, 600); }, []);
-  const filtered = crops.filter(c => (category === "All" || c.category === category) && c.name.toLowerCase().includes(search.toLowerCase()));
+  const categories = ["All", "Equipment", "Inputs", "Tools"];
+  useEffect(() => { setTimeout(() => { setProducts(PRODUCTS); setLoading(false); }, 600); }, []);
+  const filtered = products.filter(c => (category === "All" || c.category === category) && c.name.toLowerCase().includes(search.toLowerCase()));
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <AnimatePresence>
-        {showListModal && <ListCropModal onClose={() => setShowListModal(false)} onList={crop => setCrops(prev => [crop, ...prev])} />}
+        {showListModal && <ListProductModal onClose={() => setShowListModal(false)} onList={product => setProducts(prev => [product, ...prev])} />}
       </AnimatePresence>
       <div className="flex items-start justify-between mb-1 flex-wrap gap-2">
         <div>
           <h1 className="text-3xl font-black" style={{ color: T.green, fontFamily: "Georgia, serif" }}>Smart Marketplace</h1>
-          <p className="text-sm" style={{ color: T.textMute }}>Fresh from the farm, direct to you</p>
+          <p className="text-sm" style={{ color: T.textMute }}>Quality agri-products, direct from sellers</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => setShowListModal(true)}
@@ -1572,7 +1553,7 @@ function MarketplacePage() {
       <div className="mt-6 space-y-4">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: T.gray }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search crops..."
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..."
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: T.white, border: `1px solid ${T.grayLight}` }} />
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -1601,9 +1582,9 @@ function MarketplacePage() {
       </AnimatePresence>
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? [1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />) :
-          filtered.map((c, i) => (
-            <motion.div key={c.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
-              <MarketplaceCard crop={c} />
+          filtered.map((p, i) => (
+            <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
+              <MarketplaceCard product={p} />
             </motion.div>
           ))}
       </div>
