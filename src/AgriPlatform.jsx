@@ -3,7 +3,7 @@
 // Stack: React + Tailwind + Framer Motion + Lucide React
 // ============================================================
 
-import { useState, useEffect, useRef, createContext, useContext } from "react";
+import React, { useState, useEffect, useRef, createContext, useContext } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import {
   Leaf, Tractor, ShoppingBasket, Users, ChevronRight, Star,
@@ -33,7 +33,7 @@ const T = {
 };
 
 // ─── API ─────────────────────────────────────────────────────
-const API = "https://echo-vegetation-numeric-nextel.trycloudflare.com";
+const API = "https://son-shots-digit-occurred.trycloudflare.com";
 
 const api = {
   get:  (path)       => fetch(`${API}${path}`).then(r => r.json()),
@@ -63,6 +63,13 @@ function AppProvider({ children }) {
   };
 
   const removeFromCart = (id) => setCart((c) => c.filter((x) => x.id !== id));
+
+  const updateQty = (id, qty) => {
+    if (qty < 1) { removeFromCart(id); return; }
+    setCart((c) => c.map((x) => x.id === id ? { ...x, qty } : x));
+  };
+
+  const clearCart = () => setCart([]);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -115,7 +122,7 @@ function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       page, setPage,
-      cart, addToCart, removeFromCart,
+      cart, addToCart, removeFromCart, updateQty, clearCart,
       toast, showToast,
       user, profile, setProfile, updateProfile,
       signIn, signUp, signOut,
@@ -215,7 +222,7 @@ function Navbar() {
               ⭐ {credits} credits
             </div>
           )}
-          <button className="relative p-2 rounded-xl" style={{ background: T.sand }} onClick={() => setPage("marketplace")}>
+          <button className="relative p-2 rounded-xl" style={{ background: T.sand }} onClick={() => setPage("cart")}>
             <ShoppingCart size={20} style={{ color: T.green }} />
             {cartCount > 0 && (
               <motion.span key={cartCount} initial={{ scale: 0 }} animate={{ scale: 1 }}
@@ -1003,7 +1010,7 @@ function FarmerCard({ farmer, onSelect, selected }) {
           <div className="mt-2 flex items-center gap-2 flex-wrap"><Tag>{farmer.crop}</Tag><StarRating rating={farmer.rating} /></div>
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="font-bold text-sm" style={{ color: T.green }}>₹{farmer.price.toLocaleString()}</div>
+          <div className="font-bold text-sm" style={{ color: T.green }}>{farmer.price != null && farmer.price > 0 ? `₹${Number(farmer.price).toLocaleString()}` : "—"}</div>
           <div className="text-xs" style={{ color: T.gray }}>wage rate</div>
         </div>
       </div>
@@ -1085,7 +1092,7 @@ function ContractBuilder({ farmer, onClose }) {
         <div className="rounded-xl p-4" style={{ background: T.greenPale }}>
           <div className="flex justify-between text-sm">
             <span style={{ color: T.textMute }}>Agreed Wage Rate</span>
-            <span className="font-bold" style={{ color: T.green }}>₹{farmer.price.toLocaleString()}</span>
+            <span className="font-bold" style={{ color: T.green }}>{farmer.price > 0 ? `₹${farmer.price.toLocaleString()}` : "—"}</span>
           </div>
           <div className="flex justify-between text-sm mt-1">
             <span style={{ color: T.textMute }}>Payment Schedule</span>
@@ -1235,6 +1242,7 @@ function ContractPage() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
   const [search, setSearch] = useState("");
+
   useEffect(() => {
     api.get("/person")
       .then(data => {
@@ -1245,15 +1253,27 @@ function ContractPage() {
           crop: p.skill || p.role || "General",
           rating: 5.0,
           contracts: 0,
-          avatar: p.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(),
+          avatar: (p.name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(),
           verified: true,
-          price: p.hourly_rate || 0,
+          price: null, // will be fetched on select
         }));
         setFarmers(mapped);
       })
       .catch(() => setFarmers([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleSelect = async (farmer) => {
+    setSelected(farmer);
+    // Fetch real wage rate from worker-summary
+    try {
+      const summary = await api.get(`/worker-summary/${farmer.id}`);
+      const rate = Number(summary.hourly_rate) || 0;
+      const contracts = Number(summary.total_contracts) || 0;
+      setSelected(prev => ({ ...prev, price: rate, contracts }));
+      setFarmers(prev => prev.map(f => f.id === farmer.id ? { ...f, price: rate, contracts } : f));
+    } catch (_) {}
+  };
   const filtered = farmers.filter(f => f.name.toLowerCase().includes(search.toLowerCase()) || f.crop.toLowerCase().includes(search.toLowerCase()));
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -1286,7 +1306,7 @@ function ContractPage() {
           {loading ? [1, 2, 3].map(i => <SkeletonCard key={i} />) :
             filtered.map((f, i) => (
               <motion.div key={f.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}>
-                <FarmerCard farmer={f} onSelect={setSelected} selected={selected?.id === f.id} />
+                <FarmerCard farmer={f} onSelect={handleSelect} selected={selected?.id === f.id} />
               </motion.div>
             ))}
         </div>
@@ -1306,7 +1326,12 @@ function ContractPage() {
                       <div className="flex gap-4 mt-4 text-sm">
                         <div><div className="font-bold">{selected.contracts}</div><div style={{ color: T.gray }}>Contracts</div></div>
                         <div><div className="font-bold">{selected.rating}</div><div style={{ color: T.gray }}>Rating</div></div>
-                        <div><div className="font-bold">₹{selected.price.toLocaleString()}</div><div style={{ color: T.gray }}>wage rate</div></div>
+                        <div>
+                          <div className="font-bold">
+                            {selected.price === null ? <span className="text-xs" style={{ color: T.gray }}>Loading...</span> : selected.price > 0 ? `₹${selected.price.toLocaleString()}` : "Not set"}
+                          </div>
+                          <div style={{ color: T.gray }}>wage rate</div>
+                        </div>
                       </div>
                     </div>
                     <button onClick={() => setShowBuilder(true)} className="px-5 py-2.5 rounded-xl font-bold text-white text-sm" style={{ background: T.green }}>Create Contract</button>
@@ -1339,12 +1364,34 @@ function ContractPage() {
 }
 
 function MarketplaceCard({ product }) {
-  const { addToCart } = useApp();
+  const { addToCart, setPage, showToast, user, profile } = useApp();
   const [added, setAdded] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
+
   const handleAdd = () => {
-    addToCart({ id: product.id, name: product.name, price: product.price, unit: product.unit });
+    addToCart({ id: product.id, market_id: product.market_id, name: product.name, price: product.price, unit: product.unit, img: product.img, seller: product.seller });
     setAdded(true); setTimeout(() => setAdded(false), 1500);
   };
+
+  const handleBuyNow = async () => {
+    if (!user) { setPage("login"); showToast("Please sign in to buy", "error"); return; }
+    setBuyingNow(true);
+    await openRazorpay({
+      amount: product.price,
+      description: product.name,
+      name: profile?.name,
+      phone: profile?.phone,
+      onSuccess: async () => {
+        if (product.market_id) {
+          try { await api.post("/sold", { market_id: product.market_id, buyer_id: user.id }); } catch (_) {}
+        }
+        setBuyingNow(false);
+        showToast(`${product.name} purchased!`);
+      },
+      onError: (msg) => { setBuyingNow(false); showToast(msg, "error"); },
+    });
+  };
+
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -3 }}
       className="rounded-2xl overflow-hidden" style={{ background: T.white, border: `1px solid ${T.grayLight}` }}>
@@ -1361,11 +1408,18 @@ function MarketplaceCard({ product }) {
           <div><span className="font-black text-lg" style={{ color: T.green }}>₹{product.price}</span></div>
           <Tag color={T.greenPale}>{product.stock.toLocaleString()} in stock</Tag>
         </div>
-        <motion.button onClick={handleAdd} animate={added ? { scale: [1, 1.15, 1] } : {}}
-          className="mt-3 w-full py-2 rounded-xl text-sm font-bold transition-all"
-          style={{ background: added ? T.greenPale : T.green, color: added ? T.greenMid : T.white }}>
-          {added ? "✓ Added!" : "Add to Cart"}
-        </motion.button>
+        <div className="mt-3 flex gap-2">
+          <motion.button onClick={handleAdd} animate={added ? { scale: [1, 1.15, 1] } : {}}
+            className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
+            style={{ background: added ? T.greenPale : T.sand, color: added ? T.greenMid : T.text }}>
+            {added ? "✓ Added!" : "Add to Cart"}
+          </motion.button>
+          <button onClick={handleBuyNow} disabled={buyingNow}
+            className="flex-1 py-2 rounded-xl text-sm font-bold text-white"
+            style={{ background: buyingNow ? T.greenSoft : T.green }}>
+            {buyingNow ? <Loader size={14} className="animate-spin inline" /> : "Buy Now"}
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -1610,22 +1664,22 @@ function MarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
-  const { cart, removeFromCart } = useApp();
-  const [showCart, setShowCart] = useState(false);
+  const { cart, setPage } = useApp();
   const [showListModal, setShowListModal] = useState(false);
-  const categories = ["All", "Equipment", "Inputs", "Tools"];
+
   useEffect(() => {
     api.get("/objects-for-sale")
       .then(data => {
-        const tagEmoji = { Equipment: "🚜", Inputs: "🌿", Tools: "🔧", Seeds: "🌱", Fertilizer: "🧪" };
+        const tagEmoji = { equipment: "🚜", inputs: "🌿", tools: "🔧", seeds: "🌱", fertilizer: "🧪", tractor: "🚜", irrigation: "💧" };
         const mapped = data.map(p => ({
           id: p.object_id,
+          market_id: p.market_id,
           name: p.name,
           category: p.tag || "General",
           price: Number(p.price_to_buy) || 0,
           unit: "piece",
           stock: 99,
-          img: tagEmoji[p.tag] || "📦",
+          img: tagEmoji[(p.tag || "").toLowerCase()] || "📦",
           seller: p.company || "AgriRoot Seller",
           rating: 4.8,
           description: p.description,
@@ -1635,8 +1689,15 @@ function MarketplacePage() {
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
   }, []);
-  const filtered = products.filter(c => (category === "All" || c.category === category) && c.name.toLowerCase().includes(search.toLowerCase()));
-  const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  // Build categories dynamically from actual data tags
+  const categories = ["All", ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
+
+  // Case-insensitive filter
+  const filtered = products.filter(c =>
+    (category === "All" || c.category?.toLowerCase() === category?.toLowerCase()) &&
+    c.name.toLowerCase().includes(search.toLowerCase())
+  );
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <AnimatePresence>
@@ -1653,8 +1714,8 @@ function MarketplacePage() {
             style={{ background: T.green, color: T.white }}>
             <Plus size={15} /> List Your Product
           </button>
-          <button onClick={() => setShowCart(v => !v)} className="px-4 py-2 rounded-xl text-sm font-bold" style={{ background: T.greenPale, color: T.green }}>
-            🛒 Cart ({cart.length})
+          <button onClick={() => setPage("cart")} className="px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5" style={{ background: T.greenPale, color: T.green }}>
+            <ShoppingCart size={15} /> Cart {cart.length > 0 && `(${cart.reduce((s,i) => s+i.qty,0)})`}
           </button>
         </div>
       </div>
@@ -1671,23 +1732,6 @@ function MarketplacePage() {
           ))}
         </div>
       </div>
-      <AnimatePresence>
-        {showCart && cart.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="mt-4 rounded-2xl p-4" style={{ background: T.white, border: `1px solid ${T.grayLight}` }}>
-            {cart.map(i => (
-              <div key={i.id} className="flex items-center justify-between py-2 border-b text-sm" style={{ borderColor: T.grayLight }}>
-                <span>{i.name} × {i.qty}</span>
-                <div className="flex items-center gap-3">
-                  <span className="font-bold" style={{ color: T.green }}>₹{i.price * i.qty}</span>
-                  <button onClick={() => removeFromCart(i.id)} style={{ color: T.gray }}><X size={14} /></button>
-                </div>
-              </div>
-            ))}
-            <div className="flex justify-between mt-3 font-bold"><span>Total</span><span style={{ color: T.green }}>₹{cartTotal}</span></div>
-          </motion.div>
-        )}
-      </AnimatePresence>
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? [1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />) :
           filtered.map((p, i) => (
@@ -1702,24 +1746,37 @@ function MarketplacePage() {
 
 function EquipmentCard({ equip }) {
   const [showRent, setShowRent] = useState(false);
-  const { showToast, user, setPage } = useApp();
+  const { showToast, user, setPage, profile } = useApp();
   const [renting, setRenting] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const days = startDate && endDate ? Math.max(1, (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24) + 1) : 0;
+  const totalCost = days * equip.price;
   const handleRent = async () => {
     if (!user) { setPage("login"); showToast("Please sign in to rent equipment", "error"); return; }
     if (!startDate || !endDate) { showToast("Please pick start and end dates", "error"); return; }
     if (endDate < startDate) { showToast("End date must be after start date", "error"); return; }
+
+    const days = Math.max(1, (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24) + 1);
+    const totalCost = days * equip.price;
+
     setRenting(true);
-    try {
-      await api.post("/rent", { market_id: equip.market_id, renter_id: user.id, starting_date: startDate, ending_date: endDate });
-      showToast(`${equip.name} booked!`);
-      setShowRent(false);
-    } catch (err) {
-      showToast("Booking failed. Try again.", "error");
-    } finally {
-      setRenting(false);
-    }
+    await openRazorpay({
+      amount: totalCost,
+      description: `${equip.name} rental — ${days} day${days > 1 ? "s" : ""}`,
+      name: profile?.name,
+      phone: profile?.phone,
+      onSuccess: async () => {
+        try {
+          await api.post("/rent", { market_id: equip.market_id, renter_id: user.id, starting_date: startDate, ending_date: endDate });
+        } catch (_) {}
+        setRenting(false);
+        setShowRent(false);
+        showToast(`${equip.name} booked for ${days} day${days > 1 ? "s" : ""}!`);
+      },
+      onError: (msg) => { setRenting(false); showToast(msg, "error"); },
+    });
   };
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -1763,9 +1820,15 @@ function EquipmentCard({ equip }) {
                   className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: T.sand, border: `1px solid ${T.grayLight}` }} />
               </div>
               <div className="text-xs" style={{ color: T.gray }}>Owner: {equip.owner} · {equip.location}</div>
-              <button onClick={handleRent} disabled={renting} className="w-full py-2.5 rounded-xl font-bold text-white text-sm"
+              {days > 0 && (
+                <div className="rounded-xl p-3 flex justify-between text-sm" style={{ background: T.greenPale }}>
+                  <span style={{ color: T.textMute }}>{days} day{days > 1 ? "s" : ""} × ₹{equip.price}</span>
+                  <span className="font-bold" style={{ color: T.green }}>₹{totalCost.toLocaleString()}</span>
+                </div>
+              )}
+              <button onClick={handleRent} disabled={renting} className="w-full py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2"
                 style={{ background: renting ? T.greenSoft : T.green }}>
-                {renting ? "Booking..." : `Confirm · ₹${equip.price}`}
+                {renting ? <><Loader size={14} className="animate-spin" /> Opening payment...</> : `🔒 Pay & Book${totalCost > 0 ? ` ₹${totalCost.toLocaleString()}` : ""}`}
               </button>
             </div>
           </motion.div>
@@ -1779,13 +1842,25 @@ function WarehouseCard({ wh }) {
   const [showBook, setShowBook] = useState(false);
   const [booking, setBooking] = useState(false);
   const [months, setMonths] = useState(1);
-  const { showToast, user, setPage } = useApp();
+  const { showToast, user, setPage, profile } = useApp();
+
+  const totalCost = wh.price * months;
+
   const handleBook = async () => {
     if (!user) { setPage("login"); showToast("Please sign in to book storage", "error"); return; }
     setBooking(true);
-    await new Promise(r => setTimeout(r, 900));
-    setBooking(false); setShowBook(false);
-    showToast(`${wh.name} booked for ${months} month${months > 1 ? "s" : ""}!`);
+    await openRazorpay({
+      amount: totalCost,
+      description: `${wh.name} — ${months} month${months > 1 ? "s" : ""}`,
+      name: profile?.name,
+      phone: profile?.phone,
+      onSuccess: () => {
+        setBooking(false);
+        setShowBook(false);
+        showToast(`${wh.name} booked for ${months} month${months > 1 ? "s" : ""}!`);
+      },
+      onError: (msg) => { setBooking(false); showToast(msg, "error"); },
+    });
   };
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -1835,8 +1910,8 @@ function WarehouseCard({ wh }) {
                 <span style={{ color: T.textMute }}>Total</span>
                 <span className="font-bold" style={{ color: T.green }}>₹{(wh.price * months).toLocaleString()}</span>
               </div>
-              <button onClick={handleBook} disabled={booking} className="w-full py-2.5 rounded-xl font-bold text-white text-sm" style={{ background: booking ? T.greenSoft : T.green }}>
-                {booking ? "Booking..." : "Confirm Booking"}
+              <button onClick={handleBook} disabled={booking} className="w-full py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2" style={{ background: booking ? T.greenSoft : T.green }}>
+                {booking ? <><Loader size={14} className="animate-spin" /> Opening payment...</> : `🔒 Pay & Book ₹${totalCost.toLocaleString()}`}
               </button>
             </div>
           </motion.div>
@@ -1853,35 +1928,86 @@ function RentalPage() {
   const [tab, setTab] = useState("equipment");
   const [category, setCategory] = useState("All");
   const [showListModal, setShowListModal] = useState(false);
-  const equipCategories = ["All", "Tractor", "Tillage", "Harvesting", "Irrigation"];
+
   useEffect(() => {
-    const tagEmoji = { Tractor: "🚜", Tillage: "⚙️", Harvesting: "🌾", Irrigation: "💧", Warehouse: "🏭", Storage: "📦" };
+    const tagEmoji = { tractor: "🚜", tillage: "⚙️", harvesting: "🌾", irrigation: "💧", storage: "📦", equipment: "🔧", warehouse: "🏭" };
+
+    // Guess category from name/description when tag is null
+    const guessCategory = (name, description, tag) => {
+      if (tag) return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
+      const text = `${name || ""} ${description || ""}`.toLowerCase();
+      if (text.includes("tractor")) return "Tractor";
+      if (text.includes("storage") || text.includes("shed") || text.includes("silo")) return "Storage";
+      if (text.includes("harvester") || text.includes("thresher") || text.includes("reaper")) return "Harvesting";
+      if (text.includes("rotavator") || text.includes("plough") || text.includes("tiller")) return "Tillage";
+      if (text.includes("drip") || text.includes("irrigation") || text.includes("sprinkler")) return "Irrigation";
+      if (text.includes("sprayer") || text.includes("pump")) return "Equipment";
+      return "Equipment";
+    };
+
     Promise.all([
       api.get("/objects-for-rent"),
-      api.get("/market-details"),
-    ]).then(([rentals, market]) => {
-      const equipList = rentals.map(r => ({
-        id: r.object_id,
-        market_id: market.find(m => m.object_name === r.name)?.market_id,
-        name: r.name,
-        category: r.tag || "Equipment",
-        price: Number(r.price_to_rent_per_day) || 0,
-        unit: "day",
-        owner: r.company || "Owner",
-        location: "India",
-        distance: "",
-        rating: 4.8,
-        available: true,
-        img: tagEmoji[r.tag] || "🔧",
-        description: r.description,
-      }));
+      api.get("/warehouse-details"),
+    ]).then(([rentals, warehouseData]) => {
+      // Deduplicate by object_id + market_id
+      const seen = new Set();
+      const equipList = rentals
+        .filter(r => {
+          const key = `${r.object_id}-${r.market_id}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .map(r => {
+          const cat = guessCategory(r.name, r.description, r.tag);
+          return {
+            id: `${r.object_id}-${r.market_id}`,
+            market_id: r.market_id,
+            name: r.name,
+            category: cat,
+            price: Number(r.price_to_rent_per_day) || 0,
+            unit: "day",
+            owner: r.company || "Owner",
+            location: "India",
+            distance: "",
+            rating: 4.8,
+            available: true,
+            img: tagEmoji[cat.toLowerCase()] || "🔧",
+            description: r.description,
+          };
+        });
+
+      const warehouseMap = new Map();
+      warehouseData.forEach(w => {
+        if (!warehouseMap.has(w.warehouse_id)) {
+          warehouseMap.set(w.warehouse_id, {
+            id: w.warehouse_id,
+            name: w.warehouse_name || "Warehouse",
+            size: w.capacity_amount && w.capacity_unit ? `${w.capacity_amount} ${w.capacity_unit}` : "N/A",
+            price: Number(w.price_per_hour) || 0,
+            unit: "hour",
+            owner: w.owner_name || "Owner",
+            location: "India",
+            distance: "",
+            rating: 4.7,
+            available: w.contract_status !== "active",
+            img: "🏭",
+            features: w.capacity_amount ? [`${w.capacity_amount} ${w.capacity_unit || ""} capacity`.trim()] : ["Storage available"],
+          });
+        }
+      });
+
       setEquipment(equipList);
-      setWarehouses([]);
+      setWarehouses(Array.from(warehouseMap.values()));
     })
     .catch(() => { setEquipment([]); setWarehouses([]); })
     .finally(() => setLoading(false));
   }, []);
-  const filteredEquip = category === "All" ? equipment : equipment.filter(e => e.category === category);
+
+  const equipCategories = ["All", ...Array.from(new Set(equipment.map(e => e.category).filter(Boolean)))];
+  const filteredEquip = category === "All"
+    ? equipment
+    : equipment.filter(e => e.category?.toLowerCase() === category?.toLowerCase());
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -2220,19 +2346,19 @@ function CommunityPage() {
     Promise.all([api.get("/forum-question"), api.get("/fundraiser")])
       .then(([questions, funds]) => {
         setPosts(questions.map(q => ({
-          id: q.question_id, author: q.author_name,
-          avatar: q.author_name.slice(0, 2).toUpperCase(),
-          title: q.title, body: q.body, likes: 0, comments: 0,
+          id: q.question_id, author: q.author_name || "Unknown",
+          avatar: (q.author_name || "?").slice(0, 2).toUpperCase(),
+          title: q.title || "Untitled", body: q.body || "", likes: 0, comments: 0,
           tag: q.topic_name || "General",
-          time: new Date(q.created_at).toLocaleDateString(),
+          time: q.created_at ? new Date(q.created_at).toLocaleDateString() : "",
         })));
         setFundraisers(funds.map(f => ({
-          id: f.fundraiser_id, author: f.question_author,
-          avatar: f.question_author.slice(0, 2).toUpperCase(),
-          title: f.question_title, description: "",
-          goal: Number(f.goal_amount), raised: Number(f.total_donated),
-          tag: "Community", time: new Date(f.created_at).toLocaleDateString(),
-          status: f.status,
+          id: f.fundraiser_id, author: f.question_author || "Unknown",
+          avatar: (f.question_author || "?").slice(0, 2).toUpperCase(),
+          title: f.question_title || "Untitled", description: "",
+          goal: Number(f.goal_amount) || 0, raised: Number(f.total_donated) || 0,
+          tag: "Community", time: f.created_at ? new Date(f.created_at).toLocaleDateString() : "",
+          status: f.status || "open",
         })));
       })
       .catch(() => {})
@@ -2299,6 +2425,210 @@ function CommunityPage() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CART PAGE
+// ═══════════════════════════════════════════════════════════════
+
+async function loadRazorpaySDK() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) { resolve(true); return; }
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
+}
+
+async function openRazorpay({ amount, description, name, phone, onSuccess, onError }) {
+  const loaded = await loadRazorpaySDK();
+  if (!loaded) { onError("Failed to load payment gateway. Check your connection."); return; }
+  const rzp = new window.Razorpay({
+    key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+    amount: Math.round(amount * 100),
+    currency: "INR",
+    name: "AgriRoot",
+    description,
+    handler: onSuccess,
+    prefill: { name: name || "", contact: phone || "" },
+    theme: { color: "#1B4332" },
+    modal: { ondismiss: () => onError("Payment cancelled") },
+  });
+  rzp.on("payment.failed", () => onError("Payment failed. Try again."));
+  rzp.open();
+}
+
+function CartPage() {
+  const { cart, removeFromCart, updateQty, clearCart, user, setPage, showToast, profile } = useApp();
+  const [paying, setPaying] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const itemCount = cart.reduce((s, i) => s + i.qty, 0);
+
+  const handleCheckout = async () => {
+    if (!user) { setPage("login"); showToast("Please sign in to checkout", "error"); return; }
+    if (cart.length === 0) { showToast("Your cart is empty", "error"); return; }
+    setPaying(true);
+
+    await openRazorpay({
+      amount: total,
+      description: `AgriRoot order — ${itemCount} item${itemCount > 1 ? "s" : ""}`,
+      name: profile?.name,
+      phone: profile?.phone,
+      onSuccess: async () => {
+        // Record each item as a sold transaction
+        for (const item of cart) {
+          if (item.market_id) {
+            try { await api.post("/sold", { market_id: item.market_id, buyer_id: user.id }); } catch (_) {}
+          }
+        }
+        setPaying(false);
+        setDone(true);
+        clearCart();
+      },
+      onError: (msg) => {
+        setPaying(false);
+        showToast(msg, "error");
+      },
+    });
+  };
+
+  if (done) return (
+    <div className="max-w-lg mx-auto px-4 py-20 text-center">
+      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+        <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: T.greenPale }}>
+          <CheckCircle size={48} style={{ color: T.greenMid }} />
+        </div>
+        <h2 className="text-3xl font-black mb-2" style={{ color: T.green, fontFamily: "Georgia, serif" }}>Order Placed!</h2>
+        <p className="text-sm mb-8" style={{ color: T.textMute }}>Your payment was successful. The seller will contact you shortly.</p>
+        <div className="flex gap-3 justify-center">
+          <button onClick={() => setPage("marketplace")} className="px-6 py-3 rounded-2xl font-bold text-white" style={{ background: T.green }}>
+            Continue Shopping
+          </button>
+          <button onClick={() => setPage("profile")} className="px-6 py-3 rounded-2xl font-bold" style={{ background: T.sand, color: T.text }}>
+            My Orders
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-10">
+      <div className="flex items-center gap-3 mb-8">
+        <button onClick={() => setPage("marketplace")} className="flex items-center gap-1.5 text-sm font-medium" style={{ color: T.gray }}>
+          <ChevronRight size={16} style={{ transform: "rotate(180deg)" }} /> Back
+        </button>
+        <h1 className="text-3xl font-black" style={{ color: T.green, fontFamily: "Georgia, serif" }}>Your Cart</h1>
+        {cart.length > 0 && (
+          <span className="text-sm px-3 py-1 rounded-full font-bold" style={{ background: T.greenPale, color: T.green }}>
+            {itemCount} item{itemCount > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {cart.length === 0 ? (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="text-center py-24 rounded-3xl" style={{ background: T.sand }}>
+          <div className="text-6xl mb-4">🛒</div>
+          <h2 className="text-xl font-black mb-2" style={{ color: T.text }}>Your cart is empty</h2>
+          <p className="text-sm mb-6" style={{ color: T.textMute }}>Browse the marketplace and add items</p>
+          <button onClick={() => setPage("marketplace")} className="px-6 py-3 rounded-2xl font-bold text-white" style={{ background: T.green }}>
+            Go to Marketplace
+          </button>
+        </motion.div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Items list */}
+          <div className="lg:col-span-2 space-y-3">
+            <AnimatePresence>
+              {cart.map((item, i) => (
+                <motion.div key={item.id}
+                  initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="rounded-2xl p-4 flex items-center gap-4"
+                  style={{ background: T.white, border: `1px solid ${T.grayLight}` }}>
+                  {/* Emoji / image */}
+                  <div className="w-16 h-16 rounded-xl flex items-center justify-center text-3xl flex-shrink-0" style={{ background: T.sand }}>
+                    {item.img || "📦"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm truncate" style={{ color: T.text }}>{item.name}</div>
+                    <div className="text-xs mt-0.5" style={{ color: T.gray }}>{item.seller || item.owner || "AgriRoot"}</div>
+                    <div className="font-black mt-1" style={{ color: T.green }}>₹{item.price.toLocaleString()} <span className="font-normal text-xs" style={{ color: T.gray }}>/ {item.unit}</span></div>
+                  </div>
+                  {/* Qty controls */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={() => updateQty(item.id, item.qty - 1)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center font-bold"
+                      style={{ background: T.sand, color: T.text }}>
+                      <Minus size={13} />
+                    </button>
+                    <span className="w-8 text-center font-bold text-sm" style={{ color: T.text }}>{item.qty}</span>
+                    <button onClick={() => updateQty(item.id, item.qty + 1)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center font-bold"
+                      style={{ background: T.sand, color: T.text }}>
+                      <Plus size={13} />
+                    </button>
+                  </div>
+                  {/* Line total */}
+                  <div className="text-right flex-shrink-0 w-24">
+                    <div className="font-black" style={{ color: T.green }}>₹{(item.price * item.qty).toLocaleString()}</div>
+                    <button onClick={() => removeFromCart(item.id)} className="text-xs mt-1" style={{ color: T.gray }}>Remove</button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <button onClick={clearCart} className="text-sm mt-2" style={{ color: T.gray }}>Clear cart</button>
+          </div>
+
+          {/* Order summary */}
+          <div className="lg:col-span-1">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl p-6 sticky top-4" style={{ background: T.white, border: `1px solid ${T.grayLight}` }}>
+              <h2 className="text-lg font-black mb-5" style={{ color: T.text, fontFamily: "Georgia, serif" }}>Order Summary</h2>
+
+              {/* Line items */}
+              <div className="space-y-2 mb-4">
+                {cart.map(i => (
+                  <div key={i.id} className="flex justify-between text-sm" style={{ color: T.textMute }}>
+                    <span className="truncate pr-2">{i.name} × {i.qty}</span>
+                    <span className="font-medium flex-shrink-0">₹{(i.price * i.qty).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t pt-4 mb-6" style={{ borderColor: T.grayLight }}>
+                <div className="flex justify-between text-sm mb-1" style={{ color: T.textMute }}>
+                  <span>Subtotal</span><span>₹{total.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm mb-1" style={{ color: T.textMute }}>
+                  <span>Platform fee</span><span>₹0</span>
+                </div>
+                <div className="flex justify-between font-black text-lg mt-3" style={{ color: T.text }}>
+                  <span>Total</span>
+                  <span style={{ color: T.green }}>₹{total.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <button onClick={handleCheckout} disabled={paying}
+                className="w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm"
+                style={{ background: paying ? T.greenSoft : T.green }}>
+                {paying ? <><Loader size={16} className="animate-spin" /> Processing...</> : <>🔒 Pay ₹{total.toLocaleString()}</>}
+              </button>
+
+              <div className="flex items-center justify-center gap-2 mt-4 text-xs" style={{ color: T.gray }}>
+                <Shield size={12} /> Secured by Razorpay
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ROOT
 // ═══════════════════════════════════════════════════════════════
 
@@ -2316,6 +2646,7 @@ function AppShell() {
     rental:      <RentalPage />,
     community:   <CommunityPage />,
     profile:     <RequireAuth><ProfilePage /></RequireAuth>,
+    cart:        <CartPage />,
   };
 
   return (
@@ -2342,10 +2673,36 @@ function AppShell() {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error("App crashed:", error, info); }
+  render() {
+    if (this.state.hasError) return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f0e8", flexDirection: "column", gap: 16, padding: 24 }}>
+        <div style={{ fontSize: 48 }}>🌾</div>
+        <h2 style={{ fontFamily: "Georgia, serif", color: "#1B4332", fontSize: 24, fontWeight: 900 }}>Something went wrong</h2>
+        <p style={{ color: "#6B7280", fontSize: 14, textAlign: "center", maxWidth: 360 }}>
+          The app hit an unexpected error. Please refresh the page.
+        </p>
+        <pre style={{ fontSize: 11, color: "#9CA3AF", maxWidth: 400, overflow: "auto", background: "#fff", padding: 12, borderRadius: 8 }}>
+          {this.state.error?.message}
+        </pre>
+        <button onClick={() => window.location.reload()} style={{ background: "#1B4332", color: "#fff", border: "none", padding: "10px 24px", borderRadius: 12, fontWeight: 700, cursor: "pointer" }}>
+          Refresh Page
+        </button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <AppProvider>
-      <AppShell />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppShell />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
